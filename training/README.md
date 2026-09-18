@@ -33,8 +33,11 @@ QuALITY keeps the choice head from rotting. typed-decisions rides along unchange
    (Docker container recommended). One-time, on the home machine.
 3. **`03-port-notebook.md`** — turn Laya's Colab notebook into a ROCm training
    script, wire in the two JSONL files, and raise the window from 512.
-4. **`04-run-training.md`** — start the run, watch VRAM, export the result, and
-   compare it against the shipped checkpoint with pi-warden's eval scripts.
+4. **`04-run-training.md`** — start the run, watch VRAM, save the checkpoint, and
+   sanity-check accuracy in-notebook.
+5. **`05-export-onnx.md`** — convert the trained checkpoint to int8 ONNX (the CPU
+   artifact pi-warden loads), drop it in place, recalibrate, and confirm it beats
+   the shipped model on pi-warden's eval cases.
 
 ## Canonical JSONL format (what the reformat scripts emit)
 
@@ -55,7 +58,11 @@ example:
 
 This plan was written without running it (no GPU on the authoring machine) and
 without seeing the internals of `laya.common.build_sequence` / `build_model`.
-Step 03 therefore has an **inspection sub-step**: you print those functions'
-source and the notebook's own item-building cell, then align ~3 field names.
-Everything else is fixed. If `build_sequence`'s argument shape differs from the
-template, that inspection is where you catch and fix it.
+Steps 03 and 05 therefore each have an **inspection sub-step**: you print those
+functions' source/signature and the notebook's own item-building cell, then align
+a handful of field names. Everything else is fixed commands. If `build_sequence`
+or the model's `forward` shape differs from the template, those inspections are
+where you catch and fix it.
+
+The safetensors→ONNX export (previously flagged as out of scope) is now covered by
+step 05 — including int8 quantization for CPU and recalibration.

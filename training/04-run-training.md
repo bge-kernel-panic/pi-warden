@@ -85,11 +85,12 @@ Compare the retrained numbers against a baseline run of the **unmodified**
 notebook (same data, `max_len: 512`). If the longer-window model scores higher on
 the long examples, the retrain worked. This is the honest, self-contained signal.
 
-### 4b. Against pi-warden's guards (needs the ONNX export — later)
+### 4b. Against pi-warden's guards (needs the ONNX export — step 05)
 
 pi-warden's eval scripts (`scripts/*-cases.mjs`, run with `WARDEN_JUDGE=laya`)
-judge the *ONNX* model, so this only applies **after** the safetensors→ONNX export
-gap from step 03.6 is closed. When it is:
+judge the *ONNX* model, so this only applies **after** you run step 05
+(`05-export-onnx.md`) to export + quantize + drop the model in place. When you
+have:
 
 ```bash
 # on the machine with pi-warden checked out, model exported to ~/.pi/agents/laya/
@@ -124,6 +125,6 @@ lower the learning rates (`LR_ENCODER`, `LR_HEAD`) by 2x.
 
 ---
 
-**Done.** You have a Laya checkpoint trained at a longer window. The remaining
-piece to use it in pi-warden is the safetensors→ONNX export (step 03.6) — pick
-that up as a separate task once 4a shows the retrain is worth shipping.
+**Done.** You have a Laya checkpoint trained at a longer window. Once 4a shows the
+retrain is worth shipping, go to `05-export-onnx.md` to turn it into the int8 ONNX
+pi-warden loads.

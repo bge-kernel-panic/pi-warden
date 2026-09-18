@@ -190,12 +190,11 @@ The notebook saves a fine-tuned checkpoint as **safetensors** (`model.safetensor
 + tokenizer + encoder). That is what step 04 produces.
 
 **pi-warden loads an ONNX file** (`~/.pi/agents/laya/laya_int8.onnx`), not
-safetensors. Converting the retrained model to the 2-marker ONNX head that
-pi-warden expects is a **separate export step that this plan does not cover** —
-it belongs to the Laya repo's export tooling (look for an `export`/`onnx` script
-there, or ask for that as a follow-up task). For now, the win is measured
-**inside the notebook** on a held-out split (step 04). Wiring the retrained model
-back into pi-warden is the next project after we confirm it's actually better.
+safetensors. Converting the retrained model to the int8 ONNX pi-warden expects is
+**step 05** (`05-export-onnx.md`). The Laya repo ships no export script, so we
+wrote one (`scripts/export_to_onnx.py`). First measure the win **inside the
+notebook** on a held-out split (step 04); only bother exporting once that looks
+good.
 
 ---
 
