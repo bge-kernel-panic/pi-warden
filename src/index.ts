@@ -1,5 +1,5 @@
 export { evaluateAction, describeAction, describePlan, matchPatterns, isReadOnlyCommand, stripDataText, buildRequest, formatVerdict, steerReason, intentSteer, offTaskSteer, steerFingerprint, SteerRepeatWindow, questions, intentQuestion, visibleQuestion, slopQuestions, approvalQuestion, securityQuestion, regretQuestions } from "./guard.js";
-export type { ActionInput, ActionSummary, EvaluateOptions, Judge, Judgment, SlopJudgment, SlopSymptom, Level, PatternHit, PreviousAction, ScannedCommand, ScopeLabel, Severity, Verdict } from "./guard.js";
+export type { ActionInput, ActionSummary, EvaluateOptions, Judge, Judgment, SlopJudgment, SlopSymptom, Level, PatternHit, PreviousAction, ScannedCommand, Severity, Verdict } from "./guard.js";
 export { SLOP_SYMPTOMS, SLOP_LABELS } from "./guard.js";
 export { ActionGuard } from "./action-guard.js";
 export type { Conversation, InspectOptions, ToolCallRef } from "./action-guard.js";
@@ -11,7 +11,7 @@ export { classifyToolResult, recordOutcome, emptyEvidence, freshChecks, needsDon
 export type { ToolOutcome, RunEvidence, DoneJudgment, DoneVerdict, DoneOptions } from "./done.js";
 export { evaluateOutput, buildOutputRequest, outputQuestions, compressOutput, saveOutput, securityNotice, outputKey, duplicateNote } from "./output.js";
 export type { Retention, OutputVerdict, OutputOptions } from "./output.js";
-export { formatExcerpt, formatQuestion } from "./excerpt.js";
+export { formatExcerpt, detectFormat } from "./excerpt.js";
 export type { OutputFormat } from "./excerpt.js";
 export { detectSearchTool, recallInstruction, classifyRecall } from "./recall.js";
 export type { SearchTool } from "./recall.js";

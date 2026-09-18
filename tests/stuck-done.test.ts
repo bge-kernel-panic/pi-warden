@@ -7,7 +7,7 @@ import type { Judge } from "../src/guard.js";
 import { AttemptWindow, buildStuckRequest, evaluateStuck, formatStuck, makeAttempt, resultFailed, stuckNudge } from "../src/stuck.js";
 
 const text = (value: string) => [{ type: "text", text: value }];
-const stuckJudge = (sameStrategy: number, approachChange: number, progress: number) => {
+const stuckJudge = (sameStrategy: number, _approachChange: number, progress: number) => {
   const calls: unknown[] = [];
   const judge: Judge & { calls: unknown[] } = {
     calls,
@@ -17,7 +17,6 @@ const stuckJudge = (sameStrategy: number, approachChange: number, progress: numb
         model: "jev-test", elapsedMs: 9, usage: { input_tokens: 10, output_tokens: 0 },
         answers: {
           same_strategy: { type: "noul", noul: sameStrategy },
-          approach_change: { type: "score", score: approachChange, confidence: 0.7, probabilities: { "0": 0, "1": 0, "2": 0 } },
           progress: { type: "noul", noul: progress },
         },
       } as never;
@@ -25,6 +24,7 @@ const stuckJudge = (sameStrategy: number, approachChange: number, progress: numb
   };
   return judge;
 };
+// `outcome` is now the `blocked` noul; the string arg maps to a probability so existing call sites keep working.
 const doneJudge = (claimsDone: number, claimsVerified: number, outcome: string, applies = 0.9) => {
   const calls: unknown[] = [];
   const judge: Judge & { calls: unknown[] } = {
@@ -37,7 +37,7 @@ const doneJudge = (claimsDone: number, claimsVerified: number, outcome: string, 
           claims_done: { type: "noul", noul: claimsDone },
           claims_verified: { type: "noul", noul: claimsVerified },
           verification_applies: { type: "noul", noul: applies },
-          outcome: { type: "choice", choice: outcome, confidence: 0.8, probabilities: { [outcome]: 0.8 } },
+          blocked: { type: "noul", noul: outcome === "blocked" ? 0.9 : 0.1 },
         },
       } as never;
     },
@@ -203,7 +203,7 @@ test("buildStuckRequest sends numbered attempts with outcomes and a task", () =>
     { n: 1, tool: "bash", call: "npm test", outcome: "failed", output: "boom" },
     { n: 2, tool: "edit", call: "edit a.ts", outcome: "ok", output: "ok" },
   ]);
-  assert.deepEqual(Object.keys(request.questions).sort(), ["approach_change", "progress", "same_strategy"]);
+  assert.deepEqual(Object.keys(request.questions).sort(), ["progress", "same_strategy"]);
 });
 
 test("classifyToolResult separates reads, mutations, and checks", () => {

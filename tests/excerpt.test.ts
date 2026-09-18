@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatExcerpt, formatQuestion } from "../src/excerpt.js";
+import { detectFormat, formatExcerpt } from "../src/excerpt.js";
 import type { OutputFormat } from "../src/excerpt.js";
 
 const noise = (n: number) => Array.from({ length: n }, (_, i) => `progress step ${i} complete`).join("\n");
 
-test("the format question offers every parser and an explicit other", () => {
-  const options = Object.keys(formatQuestion.format.criteria).sort();
-  assert.deepEqual(options, ["eslint", "git_diff", "git_log", "node_test", "npm_install", "other", "pytest", "tsc", "vitest_jest"]);
+test("detectFormat recognises each tool from its markers and returns undefined for plain text", () => {
+  assert.equal(detectFormat("diff --git a/x.ts b/x.ts\n@@ -1 +1 @@\n-a\n+b"), "git_diff");
+  assert.equal(detectFormat("commit 0123456789ab\n    subject line"), "git_log");
+  assert.equal(detectFormat("src/x.ts(3,5): error TS2322: bad\nFound 1 error."), "tsc");
+  assert.equal(detectFormat("added 5 packages, and audited 6 packages in 1s"), "npm_install");
+  assert.equal(detectFormat(noise(50)), undefined);
   assert.equal(formatExcerpt("anything", "other"), undefined);
 });
 

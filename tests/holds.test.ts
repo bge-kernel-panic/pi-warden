@@ -14,7 +14,7 @@ const verdict = (overrides: Partial<Verdict> & { command?: string; path?: string
     summary: { tool: "bash", ...(command !== undefined ? { command } : {}), ...(path !== undefined ? { path } : {}) },
     patterns: [{ id: "git-force-push", severity: "destructive", label: "git force push" }],
     reasons: ["destructive: git force push", "irreversible 0.91"],
-    judgment: { irreversible: 0.91, offTask: 0.2, scope: "expected_step", scopeConfidence: 0.8, mutates: 0.95, model: "jev-test", elapsedMs: 5 },
+    judgment: { irreversible: 0.91, offTask: 0.2, unrelated: 0.1, mutates: 0.95, model: "jev-test", elapsedMs: 5 },
     ...rest,
   };
 };
@@ -156,7 +156,7 @@ test("the log is one JSON line per call, owner-only, under the agent directory, 
   const text = await readFile(path, "utf8");
   const lines = text.trimEnd().split("\n").map(line => JSON.parse(line) as Record<string, unknown>);
   assert.equal(lines.length, 2, "the file holds the current state of every record, not an event per change");
-  assert.deepEqual(lines[0], { id: 1, at: 1, tool: "bash", level: "confirm", source: "typesafe", mode: "steer", held: true, patterns: ["git-force-push"], reasons: ["destructive: git force push", "irreversible 0.91"], planChars: 0, scores: { irreversible: 0.91, offTask: 0.2, scope: "expected_step", mutates: 0.95 }, outcome: "approved", outcomeAt: 2, outcomeVia: "retry" });
+  assert.deepEqual(lines[0], { id: 1, at: 1, tool: "bash", level: "confirm", source: "typesafe", mode: "steer", held: true, patterns: ["git-force-push"], reasons: ["destructive: git force push", "irreversible 0.91"], planChars: 0, scores: { irreversible: 0.91, offTask: 0.2, unrelated: 0.1, mutates: 0.95 }, outcome: "approved", outcomeAt: 2, outcomeVia: "retry" });
   assert.equal(lines[1]!.outcome, "pending");
   assert.ok(!text.includes("origin main") && !text.includes("secret-dir"), "commands never reach the log");
   if (process.platform !== "win32") assert.equal((await stat(path)).mode & 0o777, 0o600);

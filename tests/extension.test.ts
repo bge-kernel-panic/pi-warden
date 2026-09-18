@@ -117,9 +117,17 @@ before(async () => {
     const body = JSON.parse(String(init?.body)) as { state: Record<string, unknown>; questions: Record<string, { type: string; criteria?: unknown }> };
     requests.push(body);
     // Answer every asked question from nextAnswers so slop, approval, stuck, and done requests all work with one mock.
+    // Compatibility shim: the old choice keys (scope/outcome/retention) map to the noul questions that replaced them.
+    const src: Record<string, number | string> = { ...nextAnswers };
+    if (typeof src.scope === "string" && src.unrelated === undefined) src.unrelated = src.scope === "unrelated" ? 0.9 : 0.1;
+    if (typeof src.outcome === "string" && src.blocked === undefined) src.blocked = src.outcome === "blocked" ? 0.9 : 0.1;
+    if (typeof src.retention === "string") {
+      if (src.droppable === undefined) src.droppable = src.retention === "all" ? 0.05 : 0.95;
+      if (src.noise_only === undefined) src.noise_only = src.retention === "summary_only" ? 0.9 : 0.1;
+    }
     const answers: Record<string, unknown> = {};
     for (const [id, question] of Object.entries(body.questions)) {
-      const value = nextAnswers[id];
+      const value = src[id];
       if (question.type === "noul") answers[id] = { type: "noul", noul: typeof value === "number" ? value : 0.1 };
       else if (question.type === "choice") {
         const keys = Object.keys(question.criteria as Record<string, unknown>);
@@ -250,7 +258,7 @@ test("tail compression stores exact full output and preserves done-check evidenc
     assert.match(result.content[0]!.text, /ERROR: exact failure/);
     assert.ok(result.content[0]!.text.length < full.length);
     assert.equal(networkCalls, 1, "security and retention share one request");
-    assert.deepEqual(Object.keys(requests[0]!.questions).sort(), ["exfiltration", "format", "injection", "retention"]);
+    assert.deepEqual(Object.keys(requests[0]!.questions).sort(), ["droppable", "exfiltration", "injection", "noise_only"]);
     assert.match(result.content[0]!.text, /To recall a part, .*offset and limit\. Do not read the whole file\./);
     const contextLine = widgets.at(-1)?.find(line => /context.*saved \d+ bytes/.test(line));
     assert.ok(contextLine);
@@ -277,7 +285,7 @@ test("multi-block results: retention is decided per text block, order and non-te
   assert.match(patch.content[2]!.text!, /pi-warden: summary_only; 12000 original characters/, "the last block is compressed separately");
   assert.match(patch.content[2]!.text!, /last block/);
   assert.ok(!patch.content[0]!.text!.includes("last block"), "blocks are judged and excerpted separately, not flattened");
-  assert.equal(requests.filter(request => "retention" in request.questions).length, 2, "each large text block earns its own retention request");
+  assert.equal(requests.filter(request => "droppable" in request.questions).length, 2, "each large text block earns its own retention request");
   await runCommand("trace", context({ hasUI: false }));
   assert.match(sentMessages.at(-1)!.message.content, /text block 1 of 2[\s\S]*text block 2 of 2/, "the trace names each compressed block");
 });
@@ -809,7 +817,7 @@ test("slop symptoms steer the agent after the write without holding it; steers a
   await grantConsent();
   nextAnswers = { irreversible: 0.05, off_task: 0.05, scope: "expected_step", slop_stub: 0.92, slop_hedging: 0.75, slop_comments: 0.1, slop_dead: 0.1 };
   assert.equal(await toolCall("write", { path: join(temporary, "src", "a.ts"), content: "// TODO: implement\nexport const a = () => null;" }), undefined);
-  assert.deepEqual(Object.keys(requests.at(-1)!.questions).sort(), ["irreversible", "mutates", "off_task", "scope", "security_risk", "slop_comments", "slop_dead", "slop_hedging", "slop_stub"]);
+  assert.deepEqual(Object.keys(requests.at(-1)!.questions).sort(), ["irreversible", "mutates", "off_task", "security_risk", "slop_comments", "slop_dead", "slop_hedging", "slop_stub", "unrelated"]);
   assert.equal(sentMessages.length, 1);
   assert.equal(sentMessages[0]!.message.customType, "pi-warden-steer");
   assert.equal((sentMessages[0]!.message as { display?: boolean }).display, false, "hidden from the transcript by default");
@@ -972,7 +980,7 @@ test("stuck detection: exact repeats are caught offline, varied failures ask Jev
   await toolResult("bash", { command: "npx jest tests/parser.test.ts" }, "1 failing: parser", true);
   assert.equal(networkCalls, 1);
   const request = requests.at(-1)!;
-  assert.deepEqual(Object.keys(request.questions).sort(), ["approach_change", "progress", "same_strategy"]);
+  assert.deepEqual(Object.keys(request.questions).sort(), ["progress", "same_strategy"]);
   assert.equal(request.state.task, "make the tests pass, try harder");
   assert.equal((request.state.attempts as unknown[]).length, 3);
   assert.equal(sentMessages.length, 2);
@@ -1161,7 +1169,7 @@ test("done-check: an unverified completion claim after file changes gets one fol
   await agentEnd("Fixed the parser bug in src/parser.ts.");
   assert.equal(networkCalls, 1);
   const request = requests.at(-1)!;
-  assert.deepEqual(Object.keys(request.questions).sort(), ["claims_done", "claims_verified", "outcome", "verification_applies"]);
+  assert.deepEqual(Object.keys(request.questions).sort(), ["blocked", "claims_done", "claims_verified", "verification_applies"]);
   assert.deepEqual(request.state.run, { file_changes: 1, checks_run: [] });
   assert.equal(sentMessages.length, 1);
   assert.match(sentMessages[0]!.message.content, /reports completion \(0\.92\) after 1 file change with no test, build, or lint run/);
@@ -1235,7 +1243,7 @@ test("the request carries the latest user prompt and a redacted action summary",
   const body = requests.at(-1) as { state: { task: string; action: Record<string, unknown> }; questions: Record<string, unknown> } | undefined;
   assert.ok(body);
   assert.equal(body.state.task, "Deploy the thing with TOKEN=[redacted] please", "redaction covers both the task and action");
-  assert.deepEqual(Object.keys(body.questions).sort(), ["irreversible", "mutates", "off_task", "scope", "visible"]);
+  assert.deepEqual(Object.keys(body.questions).sort(), ["irreversible", "mutates", "off_task", "unrelated", "visible"]);
   assert.equal(body.state.action.tool, "bash");
   assert.ok(!String(body.state.action.command).includes("abc.def.ghi"));
   assert.ok(String(body.state.action.command).includes("[redacted]"));
@@ -1425,9 +1433,9 @@ test("the widget is a clickable component: a left click toggles a non-capturing 
   assert.ok(panel.render(120).every(line => line.startsWith("│ ")), "a left border marks the pane");
   let text = panel.render(120).join("\n");
   assert.match(text, /pi-warden trace · 1 event/);
-  assert.match(text, /action\s+ALLOW\s+bash · irreversible 0\.20 · off-task 0\.10 · expected step/, "the verdict leads the entry as a chip; the redundant warden prefix is gone");
+  assert.match(text, /action\s+ALLOW\s+bash · irreversible 0\.20 · off-task 0\.10 · unrelated 0\.10/, "the verdict leads the entry as a chip; the redundant warden prefix is gone");
   assert.match(text, /· ran: npm test/);
-  assert.match(text, /· jev: irreversible 0\.20 · off-task 0\.10 · expected step/);
+  assert.match(text, /· jev: irreversible 0\.20 · off-task 0\.10 · unrelated 0\.10/);
 
   panel.handleInput("\x1b");
   await new Promise(resolve => setTimeout(resolve, 0));

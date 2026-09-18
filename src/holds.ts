@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { userConfigPath } from "./config.js";
 import type { WardenMode } from "./config.js";
-import type { ActionSummary, Level, PreviousAction, ScopeLabel, Verdict } from "./guard.js";
+import type { ActionSummary, Level, PreviousAction, Verdict } from "./guard.js";
 
 /**
  * Hold feedback loop. Every hold is a prediction ("this call should not run as it stands") and every allowed call the
@@ -26,7 +26,7 @@ export type OutcomeVia = "retry" | "dialog" | "next prompt" | "jev" | "text";
 export interface CallScores {
   irreversible: number;
   offTask: number;
-  scope: ScopeLabel;
+  unrelated: number;
   mutates?: number;
   approved?: number;
   intentMismatch?: number;
@@ -90,7 +90,7 @@ const REGRET_THRESHOLD = 0.7;
 function scoresOf(verdict: Verdict): CallScores | undefined {
   const { judgment } = verdict;
   if (!judgment) return undefined;
-  const scores: CallScores = { irreversible: judgment.irreversible, offTask: judgment.offTask, scope: judgment.scope };
+  const scores: CallScores = { irreversible: judgment.irreversible, offTask: judgment.offTask, unrelated: judgment.unrelated };
   if (judgment.mutates !== undefined) scores.mutates = judgment.mutates;
   if (judgment.approved !== undefined) scores.approved = judgment.approved;
   if (judgment.intentMismatch !== undefined) scores.intentMismatch = judgment.intentMismatch;

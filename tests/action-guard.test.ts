@@ -6,7 +6,7 @@ import { defaultConfig } from "../src/config.js";
 import type { Judge } from "pi-typesafe";
 
 interface Request { state: { action: { command?: string; path?: string } }; questions: Record<string, unknown> }
-interface Answers { irreversible: number; offTask?: number; scope?: string; mutates?: number; approved?: number }
+interface Answers { irreversible: number; offTask?: number; unrelated?: number; mutates?: number; approved?: number }
 
 /**
  * A judge whose next answers are set by the test. `open` keeps requests pending until the test releases them, which is
@@ -16,7 +16,7 @@ function stubJudge(): Judge & { requests: Request[]; next: Answers; release: () 
   const waiting: Array<() => void> = [];
   const judge = {
     requests: [] as Request[],
-    next: { irreversible: 0.1, offTask: 0.1, scope: "expected_step", mutates: 0.9 } as Answers,
+    next: { irreversible: 0.1, offTask: 0.1, unrelated: 0.1, mutates: 0.9 } as Answers,
     open: false,
     release() { for (const wake of waiting.splice(0)) wake(); },
     async evaluate(request: unknown) {
@@ -28,7 +28,7 @@ function stubJudge(): Judge & { requests: Request[]; next: Answers; release: () 
         answers: {
           irreversible: { type: "noul", noul: answers.irreversible },
           off_task: { type: "noul", noul: answers.offTask ?? 0.1 },
-          scope: { type: "choice", choice: answers.scope ?? "expected_step", confidence: 0.9, probabilities: { [answers.scope ?? "expected_step"]: 0.9 } },
+          unrelated: { type: "noul", noul: answers.unrelated ?? 0.1 },
           mutates: { type: "noul", noul: answers.mutates ?? 0.9 },
           ...((request as Request).questions.approved ? { approved: { type: "noul", noul: answers.approved ?? 0 } } : {}),
         },
@@ -103,7 +103,7 @@ test("regression: approval applies to the action, not the exact command string; 
   judge.next = { irreversible: 0.9, offTask: 0.2, mutates: 0.95 };
   assert.equal((await guard.inspect(bash("c6", "git push --force"), under("clean up"), options(judge))).level, "confirm");
   guard.hold("clean up");
-  judge.next = { irreversible: 0.95, offTask: 0.9, scope: "unrelated", mutates: 0.95, approved: 0.05 };
+  judge.next = { irreversible: 0.95, offTask: 0.9, unrelated: 0.9, mutates: 0.95, approved: 0.05 };
   assert.equal((await guard.inspect(bash("c7", "rm -rf ~/Documents"), under("yes"), options(judge))).level, "confirm", "a yes to one action does not approve a different one");
 });
 

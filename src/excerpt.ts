@@ -1,26 +1,10 @@
-import { choice } from "pi-typesafe";
-
 /**
- * Format-aware excerpts. Jev selects which tool produced the output; code keeps the exact lines that matter for that
- * format: failing tests with their assertion lines, compiler and linter errors with file:line, changed files with
- * counts, package manager warnings, and the final summary. Nothing is paraphrased. A parser returns undefined when
- * it does not recognise its markers, and the caller falls back to the generic head/diagnostic/tail excerpt.
+ * Format-aware excerpts. The format is detected offline from the output's own markers (see detectFormat); code then keeps
+ * the exact lines that matter for that format: failing tests with their assertion lines, compiler and linter errors with
+ * file:line, changed files with counts, package manager warnings, and the final summary. Nothing is paraphrased. A parser
+ * returns undefined when it does not recognise its markers, and the caller falls back to the generic head/diagnostic/tail.
  */
 export type OutputFormat = "vitest_jest" | "node_test" | "tsc" | "eslint" | "pytest" | "git_diff" | "git_log" | "npm_install" | "other";
-
-export const formatQuestion = {
-  format: choice("Which kind of tool produced `output`? Judge from the markers in the sample; `tool` names the calling tool, not the program. Select other when unsure or when the output is source code, data, or prose.", {
-    vitest_jest: "A Vitest or Jest run: ✓/✗/× or PASS/FAIL per test, a 'Test Files' or 'Tests:' summary.",
-    node_test: "Node's built-in test runner: TAP lines 'ok'/'not ok' with '# tests', or the spec reporter with ✔/✖ and 'ℹ tests'.",
-    tsc: "TypeScript compiler diagnostics: 'file(line,col): error TSnnnn:' lines, 'Found N errors'.",
-    eslint: "ESLint report: a file path line followed by 'line:col  error|warning  message  rule', then '✖ N problems'.",
-    pytest: "pytest: dots/F per test, '___ test_name ___' failure headers, 'E ' assertion lines, 'FAILED'/'PASSED' lines, '=== N passed/failed ===' summary.",
-    git_diff: "A unified diff: 'diff --git', '---'/'+++', '@@' hunks with +/- lines.",
-    git_log: "git log or git status output: 'commit <hash>' blocks or one-line hashes with subjects; 'modified:'/'new file:' status lines.",
-    npm_install: "npm, pnpm, or yarn install: 'added N packages', 'npm warn', 'deprecated', 'vulnerabilities', 'up to date'.",
-    other: "Anything else: source code, data, documentation, a shell listing, a mixed or unknown log.",
-  }),
-};
 
 const LIMIT = 6000;
 
@@ -120,6 +104,19 @@ const PARSERS: Record<Exclude<OutputFormat, "other">, (lines: readonly string[])
  * Exact lines selected by the parser for `format`, joined and capped, with the last non-empty lines as a tail so the
  * final status is always present. Undefined when the format is `other` or its markers are absent.
  */
+/**
+ * The output format, detected offline from its own markers by trying each parser; the first whose markers are present
+ * wins. Replaces asking the model "which tool produced this" — the markers are distinctive enough for regex. Undefined
+ * means no known format (the caller keeps the generic head/diagnostic/tail excerpt).
+ */
+export function detectFormat(text: string): OutputFormat | undefined {
+  const lines = text.split("\n");
+  for (const [format, parser] of Object.entries(PARSERS)) {
+    if (parser(lines) !== undefined) return format as OutputFormat;
+  }
+  return undefined;
+}
+
 export function formatExcerpt(text: string, format: OutputFormat): string | undefined {
   if (format === "other") return undefined;
   const lines = text.split("\n");

@@ -64,7 +64,7 @@ export function actionDetails(verdict: Verdict, extra: { mode?: string; told?: s
   if (verdict.plan !== undefined) lines.push(`plan: ${clip(verdict.plan.replace(/\s+/g, " "), 300)}`);
   if (verdict.patterns.length) lines.push(`patterns: ${verdict.patterns.map(hit => `${hit.id} (${hit.severity})`).join(", ")}`);
   if (judgment) {
-    lines.push(`jev: irreversible ${percent(judgment.irreversible)} · off-task ${percent(judgment.offTask)} · ${judgment.scope.replace(/_/g, " ")} (${percent(judgment.scopeConfidence)})${judgment.approved !== undefined ? ` · approved ${percent(judgment.approved)}` : ""}${judgment.mutates !== undefined ? ` · mutates ${percent(judgment.mutates)}` : ""}${judgment.visible !== undefined ? ` · visible ${percent(judgment.visible)}` : ""}${judgment.intentMismatch !== undefined ? ` · intent mismatch ${percent(judgment.intentMismatch)}` : ""}${judgment.regretted !== undefined ? ` · regret of last turn ${percent(judgment.regretted)}` : ""} · ${judgment.model} · ${judgment.elapsedMs} ms`);
+    lines.push(`jev: irreversible ${percent(judgment.irreversible)} · off-task ${percent(judgment.offTask)} · unrelated ${percent(judgment.unrelated)}${judgment.approved !== undefined ? ` · approved ${percent(judgment.approved)}` : ""}${judgment.mutates !== undefined ? ` · mutates ${percent(judgment.mutates)}` : ""}${judgment.visible !== undefined ? ` · visible ${percent(judgment.visible)}` : ""}${judgment.intentMismatch !== undefined ? ` · intent mismatch ${percent(judgment.intentMismatch)}` : ""}${judgment.regretted !== undefined ? ` · regret of last turn ${percent(judgment.regretted)}` : ""} · ${judgment.model} · ${judgment.elapsedMs} ms`);
   }
   if (judgment?.securityRisk !== undefined) lines.push(`security risk: ${percent(judgment.securityRisk)}`);
   if (verdict.slop) lines.push(`slop: stub ${percent(verdict.slop.stub)} · comments ${percent(verdict.slop.comments)} · dead ${percent(verdict.slop.dead)} · hedging ${percent(verdict.slop.hedging)}${verdict.slopReasons?.length ? ` → ${verdict.slopReasons.join("; ")}` : ""}`);
@@ -77,7 +77,7 @@ export function actionDetails(verdict: Verdict, extra: { mode?: string; told?: s
 
 export function stuckDetails(verdict: StuckVerdict, attempts: readonly Attempt[], told?: string): string[] {
   const lines = attempts.map((attempt, index) => `${index + 1}. ${attempt.failed ? "✗" : "✓"} ${clip(attempt.call.replace(/\s+/g, " "), 120)}${attempt.failed && attempt.output ? ` → ${clip(attempt.output.replace(/\s+/g, " "), 120)}` : ""}`);
-  if (verdict.judgment) lines.push(`jev: same strategy ${percent(verdict.judgment.sameStrategy)} · approach change ${verdict.judgment.approachChange.toFixed(2)}/2 · progress ${percent(verdict.judgment.progress)} · ${verdict.judgment.model} · ${verdict.judgment.elapsedMs} ms`);
+  if (verdict.judgment) lines.push(`jev: same strategy ${percent(verdict.judgment.sameStrategy)} · progress ${percent(verdict.judgment.progress)} · ${verdict.judgment.model} · ${verdict.judgment.elapsedMs} ms`);
   if (verdict.reasons.length) lines.push(`why: ${verdict.reasons.join("; ")}`);
   if (verdict.error) lines.push(`typesafe: ${verdict.error}`);
   if (told) lines.push(`agent told: ${clip(told, 400)}`);
@@ -87,7 +87,7 @@ export function stuckDetails(verdict: StuckVerdict, attempts: readonly Attempt[]
 export function doneDetails(verdict: DoneVerdict, finalMessage: string, told?: string): string[] {
   const lines = [`final message: ${clip(finalMessage.replace(/\s+/g, " "), 300)}`];
   lines.push(`evidence: ${verdict.evidence.mutations} code change${verdict.evidence.mutations === 1 ? "" : "s"}${verdict.evidence.checks.length ? `; checks: ${verdict.evidence.checks.map(check => `${clip(check.call, 60)} → ${check.passed ? "passed" : "failed"}`).join(", ")}` : "; no checks ran"}`);
-  if (verdict.judgment) lines.push(`jev: claims done ${percent(verdict.judgment.claimsDone)} · claims verified ${percent(verdict.judgment.claimsVerified)} · checks apply ${percent(verdict.judgment.verificationApplies)} · ${verdict.judgment.outcome} · ${verdict.judgment.model} · ${verdict.judgment.elapsedMs} ms`);
+  if (verdict.judgment) lines.push(`jev: claims done ${percent(verdict.judgment.claimsDone)} · claims verified ${percent(verdict.judgment.claimsVerified)} · checks apply ${percent(verdict.judgment.verificationApplies)} · blocked ${percent(verdict.judgment.blocked)} · ${verdict.judgment.model} · ${verdict.judgment.elapsedMs} ms`);
   if (verdict.reasons.length) lines.push(`why: ${verdict.reasons.join("; ")}`);
   if (verdict.error) lines.push(`typesafe: ${verdict.error}`);
   if (told) lines.push(`agent told: ${clip(told, 400)}`);

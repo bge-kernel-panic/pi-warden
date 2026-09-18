@@ -9,11 +9,14 @@ import { buildOutputRequest, compressOutput, duplicateNote, evaluateOutput, outp
 import { secretIds } from "../src/redact.js";
 
 const options = () => ({ security: defaultConfig().security, context: defaultConfig().context, timeoutMs: 1000 });
+// retention is two nouls now: `droppable` (can anything be dropped) and `noise_only` (summary tail suffices). The
+// string arg maps to those so existing call sites read the same.
 const judge = (injection = 0.1, exfiltration = 0.1, retention = "all", confidence = 0.95): Judge => ({
   async evaluate() {
     return { model: "jev-test", elapsedMs: 1, answers: {
       injection: { type: "noul", noul: injection }, exfiltration: { type: "noul", noul: exfiltration },
-      retention: { type: "choice", choice: retention, confidence, probabilities: { all: 1 - confidence, [retention]: confidence } },
+      droppable: { type: "noul", noul: retention === "all" ? 1 - confidence : confidence },
+      noise_only: { type: "noul", noul: retention === "summary_only" ? 0.9 : 0.1 },
     } } as never;
   },
 });
@@ -56,36 +59,25 @@ test("bounded output requests redact before sampling and batch independent quest
   const serialized = JSON.stringify(request);
   assert.ok(!serialized.includes("private-value"));
   assert.ok(!serialized.includes("xxxx"));
-  assert.deepEqual(Object.keys(request.questions), ["injection", "exfiltration", "retention", "format"]);
+  assert.deepEqual(Object.keys(request.questions), ["injection", "exfiltration", "droppable", "noise_only"]);
   assert.ok(serialized.length < 10000);
 });
 
-test("a recognised format above formatConfidence selects the parser; other, low probability, or absent markers fall back", async () => {
+test("format is detected offline from the output's markers and drives the parser; unknown output falls back", async () => {
   const vitest = `${"progress complete\n".repeat(1500)} ❯ tests/a.test.ts (2 tests | 1 failed) 12ms\n   × adds numbers\n     → expected 3 to be 4\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed (2)\n`;
-  const withFormat = (format: string, probability: number): Judge => ({
-    async evaluate() {
-      return { model: "jev-test", elapsedMs: 1, answers: {
-        injection: { type: "noul", noul: 0.1 }, exfiltration: { type: "noul", noul: 0.1 },
-        retention: { type: "choice", choice: "errors_and_summary", confidence: 0.9, probabilities: { all: 0.1, errors_and_summary: 0.9 } },
-        format: { type: "choice", choice: format, confidence: probability, probabilities: { [format]: probability, other: 1 - probability } },
-      } } as never;
-    },
-  });
-  const parsed = await evaluateOutput("bash", vitest, "run the tests", { ...options(), judge: withFormat("vitest_jest", 0.9) });
+  const parsed = await evaluateOutput("bash", vitest, "run the tests", { ...options(), judge: judge(0.1, 0.1, "errors_and_summary", 0.9) });
   assert.equal(parsed.format, "vitest_jest");
+  assert.equal(parsed.formatConfidence, 1);
   const excerpt = compressOutput(vitest, parsed.retention, parsed.format)!;
   assert.match(excerpt, /vitest_jest format/);
   assert.match(excerpt, /× adds numbers/);
   assert.match(excerpt, /expected 3 to be 4/);
   assert.match(excerpt, /Tests {2}1 failed/);
   assert.ok(!excerpt.includes("[head excerpt]"));
-  const unsure = await evaluateOutput("bash", vitest, "run the tests", { ...options(), judge: withFormat("vitest_jest", 0.5) });
-  assert.equal(unsure.format, undefined);
-  assert.equal(unsure.formatConfidence, 0.5);
-  const other = await evaluateOutput("bash", vitest, "run the tests", { ...options(), judge: withFormat("other", 0.95) });
-  assert.equal(other.format, undefined);
-  // Jev names a format whose markers are absent: the generic excerpt is used, nothing is lost.
-  assert.match(compressOutput(log(), "errors_and_summary", "tsc")!, /\[head excerpt\]/);
+  // Output without recognised markers: no format, generic excerpt, nothing lost.
+  const plain = await evaluateOutput("bash", log(), "run", { ...options(), judge: judge(0.1, 0.1, "errors_and_summary", 0.9) });
+  assert.equal(plain.format, undefined);
+  assert.match(compressOutput(log(), "errors_and_summary", plain.format)!, /\[head excerpt\]/);
 });
 
 test("output keys ignore colour codes and trailing whitespace; the duplicate note names the earlier tool and size", () => {
@@ -116,9 +108,9 @@ test("tail compression needs consent, confidence, sufficient size, and one text 
   }
   const uncertain = await evaluateOutput("bash", log(), undefined, { ...options(), judge: judge(0.1, 0.1, "summary_only", 0.5) });
   assert.equal(uncertain.retention, "all");
-  const noProbabilities: Judge = { async evaluate() { return { model: "jev-test", elapsedMs: 1, answers: { retention: { type: "choice", choice: "summary_only", confidence: 0.99 } } } as never; } };
-  const missing = await evaluateOutput("bash", log(), undefined, { ...options(), security: { enabled: false, threshold: 0.7 }, judge: noProbabilities });
-  assert.equal(missing.retention, "all", "a missing probability keeps the full output");
+  const noDroppable: Judge = { async evaluate() { return { model: "jev-test", elapsedMs: 1, answers: { noise_only: { type: "noul", noul: 0.9 } } } as never; } };
+  const missing = await evaluateOutput("bash", log(), undefined, { ...options(), security: { enabled: false, threshold: 0.7 }, judge: noDroppable });
+  assert.equal(missing.retention, "all", "a missing droppable answer keeps the full output");
   const mixed = await evaluateOutput("bash", log(), undefined, { ...options(), compressible: false, judge: judge(0.1, 0.1, "summary_only") });
   assert.equal(mixed.retention, "all");
   const small = await evaluateOutput("read", "short output", undefined, { ...options(), judge: judge(0.1, 0.1, "summary_only") });

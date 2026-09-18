@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { ask, noul, score } from "pi-typesafe";
+import { ask, noul } from "pi-typesafe";
 import type { IntegrationErrorCode, Judge } from "pi-typesafe";
 import type { StuckGuardConfig } from "./config.js";
 import { redact } from "./redact.js";
@@ -20,8 +20,6 @@ export interface Attempt {
 
 export interface StuckJudgment {
   sameStrategy: number;
-  /** 0 identical … 2 meaningfully different. */
-  approachChange: number;
   progress: number;
   model: string;
   elapsedMs: number;
@@ -159,11 +157,6 @@ export const stuckQuestions = {
       false: "No: later attempts use a different tool, test a new hypothesis, gather new information first, or act on what the earlier output said.",
     },
   ),
-  approach_change: score("How much did the approach change across `attempts`?", [
-    "Identical or near-identical retries",
-    "Cosmetic changes: different flags, paths, or wording, same underlying idea",
-    "Meaningfully different: a new hypothesis, tool, or information-gathering step",
-  ]),
   progress: noul("Do the later entries in `attempts` show progress toward resolving the failure seen in the earlier ones, such as a different error, a partial success, or new information?"),
 };
 
@@ -205,14 +198,13 @@ export async function evaluateStuck(window: AttemptWindow, task: string | undefi
   if (!result.ok) return { stuck: false, source: "error", failures, reasons: [], error: result.error, ...(result.errorCode ? { errorCode: result.errorCode } : {}) };
   const judgment: StuckJudgment = {
     sameStrategy: result.answers.same_strategy.noul,
-    approachChange: result.answers.approach_change.score,
     progress: result.answers.progress.noul,
     model: result.model,
     elapsedMs: result.elapsedMs,
   };
   const stuck = judgment.sameStrategy >= options.config.sameStrategy;
   const reasons = stuck
-    ? [`${failures} failures with the same strategy (${judgment.sameStrategy.toFixed(2)}), approach change ${judgment.approachChange.toFixed(1)}/2, progress ${judgment.progress.toFixed(2)}`]
+    ? [`${failures} failures with the same strategy (${judgment.sameStrategy.toFixed(2)}), progress ${judgment.progress.toFixed(2)}`]
     : [];
   return { stuck, source: "typesafe", failures, reasons, judgment };
 }

@@ -1,4 +1,4 @@
-import { ask, choice, noul } from "pi-typesafe";
+import { ask, noul } from "pi-typesafe";
 import type { IntegrationErrorCode, Judge } from "pi-typesafe";
 import type { DoneGuardConfig } from "./config.js";
 import { isReadOnlyCommand } from "./guard.js";
@@ -111,11 +111,9 @@ export const doneQuestions = {
       false: "No: `task` is about documentation, prose, file housekeeping, deleting or moving files, answering a question, or something the project's checks would not cover.",
     },
   ),
-  outcome: choice("What does `final_message` report about `task`?", {
-    complete: "The work is finished",
-    partial: "Progress was made and remaining work is named",
-    blocked: "A blocker is reported or the user is asked something",
-    other: "None of these",
+  blocked: noul("Does `final_message` report a blocker or ask the user a question, rather than presenting the requested work as finished?", {
+    true: "Yes: it names a blocker, says it is stuck or waiting on something, or asks the user a question.",
+    false: "No: it presents the work as done or only describes progress, without a blocking question.",
   }),
 };
 
@@ -123,7 +121,8 @@ export interface DoneJudgment {
   claimsDone: number;
   claimsVerified: number;
   verificationApplies: number;
-  outcome: "complete" | "partial" | "blocked" | "other";
+  /** P(the message reports a blocker or asks the user something); a high value suppresses the unverified nudge. */
+  blocked: number;
   model: string;
   elapsedMs: number;
 }
@@ -151,6 +150,7 @@ export function buildDoneRequest(task: string | undefined, finalMessage: string,
 }
 
 const APPLIES_THRESHOLD = 0.5;
+const BLOCKED_THRESHOLD = 0.5;
 
 export interface DoneOptions {
   config: DoneGuardConfig;
@@ -166,11 +166,11 @@ export async function evaluateDone(task: string | undefined, finalMessage: strin
     claimsDone: result.answers.claims_done.noul,
     claimsVerified: result.answers.claims_verified.noul,
     verificationApplies: result.answers.verification_applies.noul,
-    outcome: result.answers.outcome.choice,
+    blocked: result.answers.blocked.noul,
     model: result.model,
     elapsedMs: result.elapsedMs,
   };
-  const unverified = judgment.claimsDone >= options.config.claimsDone && judgment.outcome !== "blocked" && judgment.verificationApplies >= APPLIES_THRESHOLD;
+  const unverified = judgment.claimsDone >= options.config.claimsDone && judgment.blocked < BLOCKED_THRESHOLD && judgment.verificationApplies >= APPLIES_THRESHOLD;
   const checks = freshChecks(evidence);
   // Total checks, not fresh: a false claim is nothing ever run in the run; a stale check is unverified, not a lie.
   const falseClaim = unverified && judgment.claimsVerified >= 0.7 && evidence.checks.length === 0;
