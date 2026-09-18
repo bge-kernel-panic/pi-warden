@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { makeJudge } from './judge.mjs';
+import { calibrateGuard, loadCalibration } from './calibrate.mjs';
 import { defaultConfig } from '../dist/config.js';
 import { evaluateRules, RuleStore } from '../dist/rules.js';
 
@@ -58,14 +59,20 @@ writeFileSync(join(cwd, 'src', 'user.ts'), 'import { db } from "./db.js";\n\nexp
 
 const judge = makeJudge({ maxRequests: 40 });
 const config = defaultConfig();
-// RULES_THRESHOLD overrides the violation threshold for quick calibration sweeps against Laya.
+// Rules use ONE pooled threshold: user rules are arbitrary, so a per-rule cut point can't generalize. CALIBRATE=1 refits
+// it from the case set; a prior fit (or RULES_THRESHOLD) overrides the 0.7 default.
+const calibrating = process.env.CALIBRATE === '1';
+const pooled = process.env.WARDEN_JUDGE === 'laya' ? loadCalibration().rules?.['*'] : undefined;
 if (Number(process.env.RULES_THRESHOLD) > 0) config.rules.threshold = Number(process.env.RULES_THRESHOLD);
+else if (typeof pooled === 'number') config.rules.threshold = pooled;
+const points = [];
 const set = new RuleStore().load(cwd, config.rules);
-console.log(`# rules: ${set.rules.length} from pi-warden.md\n`);
+console.log(`# rules: ${set.rules.length} from pi-warden.md (threshold ${config.rules.threshold})\n`);
 let total = 0, mismatches = 0;
 for (const item of cases) {
   const input = item.tool === 'write' ? { path: item.path, content: item.content } : { path: item.path, edits: item.edits };
   const verdict = await evaluateRules(item.tool, input, { cwd, config: config.rules, set, judge, timeoutMs: 15000 });
+  for (const score of verdict.scores ?? []) points.push({ score: score.violation, label: item.expect.includes(score.id) });
   const flagged = verdict.findings.map(finding => finding.id);
   const ok = verdict.source === 'typesafe' && flagged.length === item.expect.length && item.expect.every(id => flagged.includes(id)) && (item.edit === undefined || verdict.editId === item.edit) && (item.asked === undefined || verdict.asked === item.asked);
   total++; if (!ok) mismatches++;
@@ -75,4 +82,5 @@ for (const item of cases) {
 console.log(`\n${total - mismatches}/${total} as expected`);
 const usage = judge.getUsage();
 console.log(`requests: ${usage.requestsStarted}, input tokens: ${usage.inputTokens}`);
+if (calibrating) calibrateGuard('rules', { '*': points });
 rmSync(cwd, { recursive: true, force: true });

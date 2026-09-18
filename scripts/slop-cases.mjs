@@ -1,9 +1,14 @@
 // Tunes the deslopify questions against a case set. Billable: one request per case. Usage: node scripts/slop-cases.mjs [code|prose]
 import { noul } from 'pi-typesafe';
 import { makeJudge } from './judge.mjs';
+import { calibrateGuard, loadCalibration } from './calibrate.mjs';
 
 const judge = makeJudge({ maxRequests: 60 });
 const only = process.argv[2];
+// Per-symptom thresholds from a prior `CALIBRATE=1` run (Laya only; fall back to 0.7). Run CALIBRATE=1 to refit and save.
+const calibrated = (process.env.WARDEN_JUDGE === 'laya' ? loadCalibration().slop : null) ?? {};
+const calibrating = process.env.CALIBRATE === '1';
+const points = {};
 
 const codeQuestions = {
   stub: noul('Does the content `action` writes leave placeholder, stub, mock, or "implement later" code where `task` needs a working implementation?', {
@@ -69,28 +74,32 @@ const proseCases = [
 
 let total = 0, miss = 0;
 const line = (ok, name, detail) => { total++; if (!ok) miss++; console.log(`${ok ? 'ok  ' : 'MISS'} ${name.padEnd(28)} ${detail}`); };
-const threshold = 0.7;
+const thr = k => calibrated[k] ?? 0.7;
+const collect = (scores, expect) => { for (const [k, v] of Object.entries(scores)) (points[k] ??= []).push({ score: v, label: expect.includes(k) }); };
 
 if (!only || only === 'code') {
-  console.log('# code slop — per-symptom Noul, threshold 0.7');
+  console.log('# code slop — per-symptom Noul');
   for (const c of codeCases) {
     const action = c.edits ? { tool: 'edit', path: 'src/x.ts', edits: c.edits } : { tool: 'write', path: 'src/x.ts', excerpt: c.content };
     const r = await judge.evaluate({ state: { task: c.task, action }, questions: codeQuestions });
     const scores = Object.fromEntries(Object.entries(r.answers).map(([k, v]) => [k, v.noul]));
-    const flagged = Object.keys(scores).filter(k => scores[k] >= threshold).sort();
+    collect(scores, c.expect);
+    const flagged = Object.keys(scores).filter(k => scores[k] >= thr(k)).sort();
     const ok = JSON.stringify(flagged) === JSON.stringify([...c.expect].sort());
     line(ok, c.name, Object.entries(scores).map(([k, v]) => `${k}=${v.toFixed(2)}`).join(' ') + (ok ? '' : `  expected [${c.expect}] got [${flagged}]`));
   }
 }
 if (!only || only === 'prose') {
-  console.log('\n# prose slop — per-symptom Noul, threshold 0.7');
+  console.log('\n# prose slop — per-symptom Noul');
   for (const c of proseCases) {
     const r = await judge.evaluate({ state: { task: c.task, audience: c.audience, reply: c.reply }, questions: proseQuestions });
     const scores = Object.fromEntries(Object.entries(r.answers).map(([k, v]) => [k, v.noul]));
-    const flagged = Object.keys(scores).filter(k => scores[k] >= threshold).sort();
+    collect(scores, c.expect);
+    const flagged = Object.keys(scores).filter(k => scores[k] >= thr(k)).sort();
     const ok = JSON.stringify(flagged) === JSON.stringify([...c.expect].sort());
     line(ok, c.name, Object.entries(scores).map(([k, v]) => `${k}=${v.toFixed(2)}`).join(' ') + (ok ? '' : `  expected [${c.expect}] got [${flagged}]`));
   }
 }
 const u = judge.getUsage();
-console.log(`\n${total - miss}/${total} matched; ${u.requestsSucceeded} requests, ${u.inputTokens} input tokens`);
+console.log(`\n${total - miss}/${total} matched (thresholds: ${calibrating ? 'pre-calibration 0.7' : Object.keys(points).map(k => `${k}=${thr(k)}`).join(' ') || '0.7'}); ${u.requestsSucceeded} requests, ${u.inputTokens} input tokens`);
+if (calibrating) calibrateGuard('slop', points);

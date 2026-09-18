@@ -2,14 +2,16 @@
 // Run standalone: node scripts/subagent-cases.mjs  (or via live-smoke.mjs subagent for the cloud judge).
 import { buildTriageRequest, defaultConfig } from '../dist/index.js';
 import { makeJudge } from './judge.mjs';
+import { calibrateGuard, loadCalibration } from './calibrate.mjs';
 
 /**
  * One request per case, sent straight to the `wake` question with the request the guard builds, so the offline
  * pre-filter does not answer for the model. The interesting cases are the reports that mention trouble and still
  * need no wake: a measurement that only fed failures would prove nothing about the threshold.
  */
-export async function runSubagentCases(judge, report) {
+export async function runSubagentCases(judge, report, threshold) {
   const config = defaultConfig();
+  const wakeAt = threshold ?? config.subagent.threshold;
   const task = 'Add a created_at column to the users table and make the migration safe to re-run';
   const cases = [
     {
@@ -51,8 +53,8 @@ export async function runSubagentCases(judge, report) {
       const result = await judge.evaluate(request, { signal: AbortSignal.timeout(8000) });
       const answer = result.answers.wake;
       const probability = typeof answer.noul === 'number' ? answer.noul : 0;
-      const wake = probability >= config.subagent.threshold;
-      report(wake === (item.expect === 'wake'), item.name, `${wake ? 'wake' : 'silent'} wake=${probability.toFixed(2)} threshold=${config.subagent.threshold} (${result.elapsedMs} ms)`);
+      const wake = probability >= wakeAt;
+      report(wake === (item.expect === 'wake'), item.name, `${wake ? 'wake' : 'silent'} wake=${probability.toFixed(2)} threshold=${wakeAt} (${result.elapsedMs} ms)`, { score: probability, label: item.expect === 'wake' });
     } catch (error) {
       report(false, item.name, `error ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -60,10 +62,14 @@ export async function runSubagentCases(judge, report) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  let total = 0, miss = 0;
-  await runSubagentCases(makeJudge({ maxRequests: 20 }), (ok, name, detail) => {
+  const calibrating = process.env.CALIBRATE === '1';
+  const threshold = calibrating || process.env.WARDEN_JUDGE !== 'laya' ? undefined : loadCalibration().subagent?.wake;
+  let total = 0, miss = 0; const points = [];
+  await runSubagentCases(makeJudge({ maxRequests: 20 }), (ok, name, detail, info) => {
     total++; if (!ok) miss++;
+    if (info) points.push(info);
     console.log(`${ok ? 'ok  ' : 'MISS'} ${name}  ${detail}`);
-  });
+  }, threshold);
   console.log(`\n${total - miss}/${total} matched`);
+  if (calibrating) calibrateGuard('subagent', { wake: points });
 }

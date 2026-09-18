@@ -1,0 +1,21 @@
+{
+  "slop": {
+    "stub": 0.7,
+    "comments": 0.501,
+    "dead": 0.859,
+    "hedging": 0.537,
+    "wordy": 0.449,
+    "cliches": 0.373,
+    "jargon": 0.233
+  },
+  "rules": {
+    "*": 0.864
+  },
+  "subagent": {
+    "wake": 0.373
+  },
+  "security": {
+    "security": 0.637,
+    "off_task": 0.728
+  }
+}
