@@ -61,7 +61,7 @@ test("triageReport answers the cheap cases offline, asks Jev only about trouble,
   assert.equal(asked.wake, true);
   assert.equal(asked.source, "jev");
   assert.equal(asked.probability, 0.93);
-  assert.equal((await triageReport(report(failure), options({ judge: judge(0.4) }))).wake, false, "below the threshold it stays silent");
+  assert.equal((await triageReport(report(failure), options({ judge: judge(0.3) }))).wake, false, "below the threshold it stays silent");
   assert.equal((await triageReport(report(failure), options({ judge: judge(0.93), config: config({ wake: false }) }))).wake, false, "wake off keeps the offline layer only");
   assert.equal((await triageReport(report(failure), options({ judge: judge(0.93), config: config({ threshold: 0.95 }) }))).wake, false, "a raised threshold stays conservative");
 

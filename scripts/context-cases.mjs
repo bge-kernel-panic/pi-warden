@@ -3,6 +3,7 @@
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { makeJudge } from './judge.mjs';
+import { calibrateGuard, loadCalibration } from './calibrate.mjs';
 import { compressOutput, defaultConfig, evaluateOutput } from '../dist/index.js';
 
 const repeat = (line, n) => Array.from({ length: n }, (_, i) => line.replace('{i}', String(i))).join('\n') + '\n';
@@ -44,10 +45,14 @@ export const contextCases = [
     text: repeat('## Section {i}\n\nThe client sends a request with a bearer token. The server validates the token, checks scopes, and returns a session. Section {i} covers a distinct edge case that a summary would need.\n', 150) },
 ];
 
-export async function runContextCases(judge, report) {
+export async function runContextCases(judge, report, opts = {}) {
   const config = defaultConfig();
+  const { thresholds = {}, points } = opts;
+  // The one knob is context.confidence: retention compresses when the `droppable` noul clears it.
+  if (typeof thresholds.confidence === 'number') config.context = { ...config.context, confidence: thresholds.confidence };
   for (const item of contextCases) {
     const verdict = await evaluateOutput(item.tool, item.text, item.task, { security: config.security, context: config.context, timeoutMs: config.timeoutMs, judge });
+    points?.confidence?.push({ score: verdict.confidence ?? 0, label: item.compress });
     const compressed = verdict.retention !== 'all';
     const formatOk = verdict.format === item.format || (item.format === 'other' && verdict.format === undefined) || (item.formatOptional && verdict.format === undefined);
     const excerpt = compressed ? compressOutput(item.text, verdict.retention, verdict.format) : undefined;
@@ -58,11 +63,15 @@ export async function runContextCases(judge, report) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  const calibrating = process.env.CALIBRATE === '1';
+  const cal = !calibrating && process.env.WARDEN_JUDGE === 'laya' ? loadCalibration().context ?? {} : {};
+  const points = calibrating ? { confidence: [] } : undefined;
   let failures = 0;
   await runContextCases(makeJudge({ maxRequests: 30 }), (ok, name, detail) => {
     if (!ok) failures++;
     console.log(`${ok ? 'ok  ' : 'MISS'} ${name.padEnd(28)} ${detail}`);
-  });
+  }, { thresholds: { confidence: cal.confidence }, points });
   console.log(`\n${contextCases.length - failures}/${contextCases.length} matched expectations.`);
+  if (calibrating) calibrateGuard('context', points);
   process.exitCode = failures ? 1 : 0;
 }

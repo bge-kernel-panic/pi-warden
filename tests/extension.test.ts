@@ -845,7 +845,8 @@ test("slop symptoms steer the agent after the write without holding it; steers a
 });
 
 test("rules: a write in a project with pi-warden.md gets its own request beside the action request; violations steer in one message with slop; fallbacks and sensitive paths", async () => {
-  await grantConsent();
+  // Pin the rules threshold below the 0.80 test scores (the shipped default is calibrated higher for Laya).
+  await writeFile(configPath(), JSON.stringify({ typesafe: true, notices: true, rules: { threshold: 0.7 } }));
   const rulesFile = join(temporary, "pi-warden.md");
   const readme = join(temporary, "README.md");
   try {

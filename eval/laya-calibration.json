@@ -17,5 +17,8 @@
   "security": {
     "security": 0.637,
     "off_task": 0.728
+  },
+  "context": {
+    "confidence": 0.576
   }
 }

@@ -197,7 +197,7 @@ test("skipReason names exclude, skip, path scoping, and missing rules", () => {
 test("evaluateRules: violations at or above the threshold become findings, strongest first, with the located edit; compliant rules do not", async () => {
   const set: RuleSet = { sources: ["pi-warden.md"], rules: parseRules(RULES_MD), dropped: 0 };
   const judge = stubJudge({ "no-console-statements": 0.91, "todo-comments-need-a-reference": 0.72, "explicit-return-types": 0.69 }, "edit_2");
-  const verdict = await evaluateRules("edit", { path: "src/user.ts", edits: [{ oldText: "  return row;", newText: "  console.log(row);" }, { oldText: "import", newText: "// TODO fix" }] }, { cwd, config: rulesConfig(), set, judge, timeoutMs: 1000 });
+  const verdict = await evaluateRules("edit", { path: "src/user.ts", edits: [{ oldText: "  return row;", newText: "  console.log(row);" }, { oldText: "import", newText: "// TODO fix" }] }, { cwd, config: rulesConfig({ threshold: 0.7 }), set, judge, timeoutMs: 1000 });
   assert.equal(verdict.source, "typesafe");
   assert.equal(verdict.asked, 4);
   assert.deepEqual(verdict.findings.map(finding => [finding.id, finding.violation]), [["no-console-statements", 0.91], ["todo-comments-need-a-reference", 0.72]]);
@@ -213,7 +213,7 @@ test("evaluateRules: violations at or above the threshold become findings, stron
 
 test("evaluateRules: an aggregate document yields one finding named after the file; skips and errors are reported, not thrown", async () => {
   const set: RuleSet = { sources: ["AGENTS.md"], rules: [], aggregate: "Never use console.log.", dropped: 0 };
-  const verdict = await evaluateRules("write", { path: "src/a.ts", content: "console.log(1)" }, { cwd, config: rulesConfig(), set, judge: stubJudge({ [AGGREGATE_QUESTION]: 0.8 }), timeoutMs: 1000 });
+  const verdict = await evaluateRules("write", { path: "src/a.ts", content: "console.log(1)" }, { cwd, config: rulesConfig({ threshold: 0.7 }), set, judge: stubJudge({ [AGGREGATE_QUESTION]: 0.8 }), timeoutMs: 1000 });
   assert.equal(verdict.aggregate, true);
   assert.equal(verdict.asked, 1);
   assert.deepEqual(verdict.findings.map(finding => finding.name), ["the project's AGENTS.md"]);
