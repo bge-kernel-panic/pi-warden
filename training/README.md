@@ -21,9 +21,12 @@ around a failed check.
 | `LocalLLaMA/typed-decisions` | mixed (choice/score/noul) | the original Laya training data; keeps the model's existing skills | loaded natively by the notebook — **no reformat needed** |
 | `saattrupdan/doc-nli` | noul (yes/no) | long premises + binary label = exactly pi-warden's dominant question shape, at length | `scripts/reformat_docnli.py` -> `data/docnli.jsonl` |
 | `emozilla/quality` | choice (4-way) | long articles + multiple choice, keeps the choice head alive | `scripts/reformat_quality.py` -> `data/quality.jsonl` |
+| `kotoba-lang/typed-decisions` (optional) | noul/choice | broad task diversity — but SHORT, so robustness only, not window | `scripts/reformat_kotoba.py` -> `data/kotoba.jsonl` (step 01 §6) |
 
 pi-warden is now mostly **noul**, so DocNLI is the most important addition;
 QuALITY keeps the choice head from rotting. typed-decisions rides along unchanged.
+The kotoba-lang sets are optional short-text diversity (see step 01 §6) — they
+don't help the window, so leave them out unless you want broad coverage.
 
 ## Order of operations (do these in order)
 

@@ -1,5 +1,6 @@
 # Generated on the training box, not source.
 data/
+kotoba/
 *.jsonl
 *.ipynb
 *.py[cod]

@@ -106,5 +106,51 @@ You should see, for docnli: `qtype: noul`, `options: ['false', 'true']`; for
 quality: `qtype: choice`, `options: ['A', 'B', 'C', 'D']`, and a large
 `state chars` (thousands). The final line must be `OK: ...`.
 
-**When both files exist and that check prints OK, step 01 is done.** Move to
-`02-setup-rocm.md`.
+**When both files exist and that check prints OK, the required data is done.**
+
+---
+
+## 6. (Optional) diversity data from kotoba-lang/typed-decisions
+
+`github.com/kotoba-lang/typed-decisions` is a *separate* reimplementation of the
+typed-decision idea. Its `.jsonl` files are the same shape as ours and convert
+trivially with `scripts/reformat_kotoba.py`.
+
+**Read this before bothering:** these are **short** texts (single sentences), so
+they do **NOT** advance the bigger-window goal — they're general-diversity /
+robustness fuel. Add them only if you want broad task coverage, and keep them a
+**minority** of the corpus so they don't drown the long DocNLI/QuALITY examples.
+`boolq` inside them is the most pi-warden-shaped (yes/no over a passage). **Skip
+`data-code`** — it's a niche code-symbol task, off-domain for pi-warden's guards.
+
+If you want them, download the two useful dirs and convert (keeping noul+choice,
+dropping the short `score` sentiment questions, and capping the count):
+
+```bash
+cd training
+for d in data-fam data-multi; do
+  mkdir -p kotoba/$d
+  for f in train.jsonl val.jsonl; do
+    curl -L -o kotoba/$d/$f \
+      "https://raw.githubusercontent.com/kotoba-lang/typed-decisions/main/$d/$f"
+  done
+done
+
+python scripts/reformat_kotoba.py --out data/kotoba.jsonl --limit 15000 \
+  kotoba/data-fam/train.jsonl kotoba/data-fam/val.jsonl \
+  kotoba/data-multi/train.jsonl kotoba/data-multi/val.jsonl
+```
+
+Expect a line like `wrote 15000 records to data/kotoba.jsonl ({'noul': ..., 'choice': ...})`.
+Then, in step 03 §4, add one more line alongside the docnli/quality loaders:
+```python
+training_items += items_from_jsonl("data/kotoba.jsonl", tok, cfg)
+```
+
+Leaving this out is completely fine — DocNLI + QuALITY + typed-decisions is the
+core corpus.
+
+---
+
+**When `data/docnli.jsonl` and `data/quality.jsonl` exist and the verify check
+prints OK, step 01 is done.** Move to `02-setup-rocm.md`.
