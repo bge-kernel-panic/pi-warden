@@ -14,8 +14,12 @@ export function defaultLayaModelPath(): string {
 const CLS_TOKEN_ID = 50281;
 const SEP_TOKEN_ID = 50282;
 const MASK_TOKEN_ID = 50284;
-/** Laya truncates the state to this many tokens so question + options + state fit the 512-token pass. */
-const STATE_TOKEN_BUDGET = 256;
+/**
+ * Tokens of state kept per question. The checkpoint is trained at ~256 state / 512 total; raising it feeds more context
+ * (the ONNX model accepts longer sequences) but goes out of the trained distribution and costs latency. Override with
+ * PI_WARDEN_LAYA_STATE_TOKENS to experiment; recalibrate thresholds if you change it.
+ */
+const STATE_TOKEN_BUDGET = Number(process.env.PI_WARDEN_LAYA_STATE_TOKENS) > 0 ? Math.floor(Number(process.env.PI_WARDEN_LAYA_STATE_TOKENS)) : 256;
 // Post-softmax calibration temperature per qtype, from the Laya model card. Override any one for iteration with
 // PI_WARDEN_LAYA_T_CHOICE / _SCORE / _NOUL (a positive number); an unset or invalid var keeps the card default.
 const CARD_TEMPERATURE = { choice: 1.637, score: 1.251, noul: 1.983 } as const;
