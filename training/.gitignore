@@ -1,0 +1,8 @@
+# Generated on the training box, not source.
+data/
+*.jsonl
+*.ipynb
+*.py[cod]
+train_laya_rocm.py
+laya_finetune_colab.py
+train.log
