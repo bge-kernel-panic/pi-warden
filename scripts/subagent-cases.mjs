@@ -1,6 +1,7 @@
-// Billable synthetic cases for the subagent triage question only. Build first;
-// run: node --env-file-if-exists=.env scripts/live-smoke.mjs subagent
+// Billable synthetic cases for the subagent triage question only. Build first.
+// Run standalone: node scripts/subagent-cases.mjs  (or via live-smoke.mjs subagent for the cloud judge).
 import { buildTriageRequest, defaultConfig } from '../dist/index.js';
+import { makeJudge } from './judge.mjs';
 
 /**
  * One request per case, sent straight to the `wake` question with the request the guard builds, so the offline
@@ -56,4 +57,13 @@ export async function runSubagentCases(judge, report) {
       report(false, item.name, `error ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  let total = 0, miss = 0;
+  await runSubagentCases(makeJudge({ maxRequests: 20 }), (ok, name, detail) => {
+    total++; if (!ok) miss++;
+    console.log(`${ok ? 'ok  ' : 'MISS'} ${name}  ${detail}`);
+  });
+  console.log(`\n${total - miss}/${total} matched`);
 }

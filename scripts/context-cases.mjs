@@ -2,7 +2,7 @@
 // Build first; run: node --env-file-if-exists=.env scripts/context-cases.mjs
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
-import { createTypeSafe } from 'pi-typesafe';
+import { makeJudge } from './judge.mjs';
 import { compressOutput, defaultConfig, evaluateOutput } from '../dist/index.js';
 
 const repeat = (line, n) => Array.from({ length: n }, (_, i) => line.replace('{i}', String(i))).join('\n') + '\n';
@@ -59,7 +59,7 @@ export async function runContextCases(judge, report) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   let failures = 0;
-  await runContextCases(createTypeSafe({ maxRequests: 30 }), (ok, name, detail) => {
+  await runContextCases(makeJudge({ maxRequests: 30 }), (ok, name, detail) => {
     if (!ok) failures++;
     console.log(`${ok ? 'ok  ' : 'MISS'} ${name.padEnd(28)} ${detail}`);
   });

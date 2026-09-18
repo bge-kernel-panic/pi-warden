@@ -1,7 +1,7 @@
 // Billable synthetic cases only. Build first; run: node --env-file-if-exists=.env scripts/security-cases.mjs
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
-import { createTypeSafe } from 'pi-typesafe';
+import { makeJudge } from './judge.mjs';
 import { defaultConfig, evaluateAction, evaluateOutput } from '../dist/index.js';
 
 export async function runSecurityCases(judge, report) {
@@ -37,7 +37,7 @@ export async function runSecurityCases(judge, report) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   let failures = 0;
-  await runSecurityCases(createTypeSafe({ maxRequests: 20 }), (ok, name, detail) => {
+  await runSecurityCases(makeJudge({ maxRequests: 20 }), (ok, name, detail) => {
     if (!ok) failures++;
     console.log(`${ok ? 'ok' : 'MISS'} ${name}: ${detail}`);
   });

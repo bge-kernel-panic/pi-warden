@@ -1,7 +1,8 @@
 // Tunes the deslopify questions against a case set. Billable: one request per case. Usage: node scripts/slop-cases.mjs [code|prose]
-import { createTypeSafe, noul } from 'pi-typesafe';
+import { noul } from 'pi-typesafe';
+import { makeJudge } from './judge.mjs';
 
-const judge = createTypeSafe({ maxRequests: 60 });
+const judge = makeJudge({ maxRequests: 60 });
 const only = process.argv[2];
 
 const codeQuestions = {

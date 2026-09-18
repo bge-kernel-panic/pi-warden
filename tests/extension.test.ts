@@ -345,7 +345,7 @@ test("status counts steers per guard, so a noisy guard has a name", async () => 
   try {
     await writeFile(rulesFile, "# No console statements\nCode must not contain `console.log`.\n");
     // One message, two guards: the slop note comes from the action guard, the violation from the rules guard.
-    nextAnswers = { irreversible: 0.05, off_task: 0.05, scope: "expected_step", slop_stub: 0.92, "rule_no-console-statements": "violation" };
+    nextAnswers = { irreversible: 0.05, off_task: 0.05, scope: "expected_step", slop_stub: 0.92, "rule_no-console-statements": 0.9 };
     assert.equal(await toolCall("write", { path: join(temporary, "src", "counted.ts"), content: "export const counted = () => { console.log(1); };" }), undefined);
     assert.equal(sentMessages.length, 1, "slop and the rule violation share one steer");
     nextAnswers = { injection: 0.95, exfiltration: 0.9 };
@@ -842,7 +842,7 @@ test("rules: a write in a project with pi-warden.md gets its own request beside 
   const readme = join(temporary, "README.md");
   try {
     await writeFile(rulesFile, "# No console statements\nCode must not contain `console.log`.\n\n# Tests for exports\npaths: src/**\nEvery exported function needs a test.\n");
-    nextAnswers = { irreversible: 0.05, off_task: 0.05, scope: "expected_step", slop_stub: 0.92, slop_hedging: 0.1, slop_comments: 0.1, slop_dead: 0.1, "rule_no-console-statements": "violation" };
+    nextAnswers = { irreversible: 0.05, off_task: 0.05, scope: "expected_step", slop_stub: 0.92, slop_hedging: 0.1, slop_comments: 0.1, slop_dead: 0.1, "rule_no-console-statements": 0.8 };
     assert.equal(await toolCall("write", { path: join(temporary, "src", "r.ts"), content: "export const r = () => { console.log(1); return null; };" }), undefined);
     assert.equal(requests.length, 2, "action request plus rules request");
     const rules = requests.find(request => "rule_no-console-statements" in request.questions);
@@ -889,7 +889,7 @@ test("rules: a write in a project with pi-warden.md gets its own request beside 
     await rm(rulesFile);
     await writeFile(readme, "# My project\n\nNever commit console.log calls.\n");
     requests.length = 0;
-    nextAnswers = { irreversible: 0.05, off_task: 0.05, scope: "expected_step", rules: "violation" };
+    nextAnswers = { irreversible: 0.05, off_task: 0.05, scope: "expected_step", rules: 0.8 };
     await toolCall("write", { path: join(temporary, "src", "f.ts"), content: "console.log(2)" });
     const aggregate = requests.find(request => "rules" in request.questions)!;
     assert.ok(aggregate, "one aggregate question");

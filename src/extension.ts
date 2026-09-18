@@ -2,8 +2,9 @@ import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@e
 import { MouseRegion } from "@earendil-works/pi-tui";
 import type { KeyId } from "@earendil-works/pi-tui";
 import { authState, createTypeSafe, describeAuth } from "pi-typesafe";
-import type { TypeSafe } from "pi-typesafe";
+import type { Judge, TypeSafe } from "pi-typesafe";
 import { ensureApiKey } from "pi-typesafe/ui";
+import { createLayaJudge } from "./laya.js";
 import { ActionGuard } from "./action-guard.js";
 import type { ToolCallRef } from "./action-guard.js";
 import * as configModule from "./config.js";
@@ -193,6 +194,9 @@ export function guardCurrentSections(result: ShapeResult): ShapeResult {
 export default function wardenExtension(pi: ExtensionAPI): void {
   let client: TypeSafe | undefined;
   let budgetExhausted = false;
+  // Local Laya judge, loaded once. Quick-and-dirty backend swap: every guard is judged by the local ONNX model.
+  let layaJudge: Judge | undefined;
+  let layaTried = false;
   let stats = freshStats();
   const widget = new Map<GuardName, string>();
   const trace = new Trace();
@@ -241,9 +245,21 @@ export default function wardenExtension(pi: ExtensionAPI): void {
   };
   const consentGiven = (config: WardenConfig) => config.typesafe || process.env.PI_WARDEN_ENABLED === "1";
   const consentSource = (config: WardenConfig) => config.typesafe ? "/warden enable" : process.env.PI_WARDEN_ENABLED === "1" ? "PI_WARDEN_ENABLED" : undefined;
-  /** A consent flag is not proof that judgments happen; ask pi-typesafe for the real key state. */
-  const judgeFor = (config: WardenConfig): TypeSafe | undefined => {
-    if (!consentGiven(config) || budgetExhausted || !authState().usable) return undefined;
+  /**
+   * WARDEN_JUDGE=laya routes every guard to the local Laya model (no key, no cloud call) for the sanity-check A/B;
+   * otherwise the cloud client answers as before. A consent flag is not proof; ask pi-typesafe for the real key state.
+   */
+  const judgeFor = (config: WardenConfig): Judge | undefined => {
+    if (!consentGiven(config) || budgetExhausted) return undefined;
+    if (process.env.WARDEN_JUDGE === "laya") {
+      if (!layaTried) {
+        layaTried = true;
+        try { layaJudge = createLayaJudge(); }
+        catch (error) { console.error(`pi-warden: ${error instanceof Error ? error.message : String(error)}`); }
+      }
+      return layaJudge;
+    }
+    if (!authState().usable) return undefined;
     return client ??= createTypeSafe({ maxRequests: config.maxRequests, timeoutMs: config.timeoutMs });
   };
   const noteError = (ctx: ExtensionContext, message: string, code: string | undefined) => {

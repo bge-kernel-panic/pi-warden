@@ -3,7 +3,7 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createTypeSafe } from 'pi-typesafe';
+import { makeJudge } from './judge.mjs';
 import { defaultConfig } from '../dist/config.js';
 import { evaluateRules, RuleStore } from '../dist/rules.js';
 
@@ -56,8 +56,10 @@ mkdirSync(join(cwd, 'src'), { recursive: true });
 writeFileSync(join(cwd, 'src', 'queue.ts'), 'export function drain(items: string[]): string[] {\n  return items;\n}\n');
 writeFileSync(join(cwd, 'src', 'user.ts'), 'import { db } from "./db.js";\n\nexport async function findUser(id: string): Promise<Row | undefined> {\n  const row = await db.get(id);\n  return row;\n}\n');
 
-const judge = createTypeSafe({ maxRequests: 40 });
+const judge = makeJudge({ maxRequests: 40 });
 const config = defaultConfig();
+// RULES_THRESHOLD overrides the violation threshold for quick calibration sweeps against Laya.
+if (Number(process.env.RULES_THRESHOLD) > 0) config.rules.threshold = Number(process.env.RULES_THRESHOLD);
 const set = new RuleStore().load(cwd, config.rules);
 console.log(`# rules: ${set.rules.length} from pi-warden.md\n`);
 let total = 0, mismatches = 0;

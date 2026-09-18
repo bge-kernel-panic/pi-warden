@@ -167,9 +167,9 @@ test("buildRulesRequest: one Choice per applicable rule, the rule text in the qu
   const request = buildRulesRequest(target, set);
   const keys = Object.keys(request.questions);
   assert.deepEqual(keys, ["rule_no-console-statements", "rule_explicit-return-types", "rule_todo-comments-need-a-reference", "rule_no-console-statements-2", LOCATOR_QUESTION]);
-  const question = request.questions["rule_no-console-statements"] as { instructions: string; criteria: Record<string, string> };
-  assert.match(question.instructions, /Rule: No console statements\nCode must not contain/);
-  assert.deepEqual(Object.keys(question.criteria), ["compliant", "violation", "not_applicable", "insufficient_context"]);
+  const question = request.questions["rule_no-console-statements"] as { type: string; instructions: string };
+  assert.equal(question.type, "noul");
+  assert.match(question.instructions, /Does the newly written content violate this rule\?\nRule: No console statements\nCode must not contain/);
   assert.equal(request.state.path, "src/user.ts");
   assert.equal((request.state.edits as unknown[]).length, 2);
   assert.ok(!("rules" in request.state), "rule text rides in the questions, not the state");

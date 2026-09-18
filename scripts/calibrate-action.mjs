@@ -3,7 +3,8 @@ import { readdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
-import { ask, choice, createTypeSafe, DEFAULT_USD_PER_MTOK, noul } from 'pi-typesafe';
+import { ask, choice, DEFAULT_USD_PER_MTOK, noul } from 'pi-typesafe';
+import { makeJudge } from './judge.mjs';
 import { auc, calibrate, defaultThresholds, formatCalibration, metricsAt } from 'pi-typesafe/calibrate';
 import { defaultConfig } from '../dist/config.js';
 import { describeAction, evaluateAction, isReadOnlyCommand, matchPatterns, regretQuestions } from '../dist/guard.js';
@@ -236,7 +237,7 @@ async function run() {
   if (!existsSync(outFile)) writeFileSync(outFile, '', { mode: 0o600 });
   const doneKeys = new Set(existing.map(record => record.key));
   const append = record => appendFileSync(outFile, `${JSON.stringify(record)}\n`);
-  const judge = createTypeSafe({ maxRequests: Number.MAX_SAFE_INTEGER, timeoutMs });
+  const judge = makeJudge({ maxRequests: Number.MAX_SAFE_INTEGER, timeoutMs });
   let requests = 0;
   const budgetLeft = () => requests < maxRequests;
 
