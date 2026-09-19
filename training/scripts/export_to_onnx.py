@@ -5,7 +5,7 @@ Pipeline: torch checkpoint -> fp32 ONNX (throwaway intermediate) -> int8 ONNX.
 
 int8 dynamic quantization is the right target for CPU: ~2-4x faster and ~4x
 smaller than fp32, using integer SIMD. It is exactly what pi-warden loads
-(~/.pi/agents/laya/laya_int8.onnx). The fp32 file only exists as the quantizer's
+(~/.pi/agent/laya/laya_int8.onnx). The fp32 file only exists as the quantizer's
 input and is deleted afterwards (you said don't bother keeping/testing it).
 
 The export reproduces the SAME I/O contract as the shipped model, so it is a
@@ -32,7 +32,7 @@ import torch
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", required=True, help="training output dir (model.safetensors + encoder/ + tokenizer/)")
-    ap.add_argument("--out-dir", default=os.path.expanduser("~/.pi/agents/laya"), help="where laya_int8.onnx goes")
+    ap.add_argument("--out-dir", default=os.path.expanduser("~/.pi/agent/laya"), help="where laya_int8.onnx goes")
     ap.add_argument("--opset", type=int, default=17)
     args = ap.parse_args()
 

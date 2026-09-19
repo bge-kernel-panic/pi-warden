@@ -189,7 +189,7 @@ the slice for the real run.
 The notebook saves a fine-tuned checkpoint as **safetensors** (`model.safetensors`
 + tokenizer + encoder). That is what step 04 produces.
 
-**pi-warden loads an ONNX file** (`~/.pi/agents/laya/laya_int8.onnx`), not
+**pi-warden loads an ONNX file** (`~/.pi/agent/laya/laya_int8.onnx`), not
 safetensors. Converting the retrained model to the int8 ONNX pi-warden expects is
 **step 05** (`05-export-onnx.md`). The Laya repo ships no export script, so we
 wrote one (`scripts/export_to_onnx.py`). First measure the win **inside the

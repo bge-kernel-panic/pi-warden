@@ -3,7 +3,7 @@
 **Where:** a box with `torch` + `onnx` + `onnxruntime` (the ROCm container works;
 export runs on CPU, no GPU needed).
 
-**Result:** `~/.pi/agents/laya/laya_int8.onnx` replaced with your retrained model,
+**Result:** `~/.pi/agent/laya/laya_int8.onnx` replaced with your retrained model,
 a drop-in that pi-warden loads with no code changes.
 
 ## Why int8 (short version)
@@ -75,9 +75,9 @@ python scripts/export_to_onnx.py --checkpoint <training_output_dir>
 
 Expected tail:
 ```
-wrote fp32 intermediate: /root/.pi/agents/laya/laya_fp32.onnx
-backed up existing model -> /root/.pi/agents/laya/laya_int8.onnx.bak
-wrote int8 model: /root/.pi/agents/laya/laya_int8.onnx
+wrote fp32 intermediate: /root/.pi/agent/laya/laya_fp32.onnx
+backed up existing model -> /root/.pi/agent/laya/laya_int8.onnx.bak
+wrote int8 model: /root/.pi/agent/laya/laya_int8.onnx
 smoke test OK: int8 runs, logits shape (1, 2) -> [[...]]
 ```
 
@@ -126,7 +126,7 @@ Higher agreement than the shipped checkpoint at the larger token budget = the
 retrain + longer window paid off. If it's worse, restore the backup:
 
 ```bash
-mv ~/.pi/agents/laya/laya_int8.onnx.bak ~/.pi/agents/laya/laya_int8.onnx
+mv ~/.pi/agent/laya/laya_int8.onnx.bak ~/.pi/agent/laya/laya_int8.onnx
 ```
 
 ---

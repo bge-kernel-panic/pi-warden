@@ -93,7 +93,7 @@ judge the *ONNX* model, so this only applies **after** you run step 05
 have:
 
 ```bash
-# on the machine with pi-warden checked out, model exported to ~/.pi/agents/laya/
+# on the machine with pi-warden checked out, model exported to ~/.pi/agent/laya/
 cd <pi-warden>
 WARDEN_JUDGE=laya PI_WARDEN_LAYA_STATE_TOKENS=2048 node scripts/context-cases.mjs
 WARDEN_JUDGE=laya PI_WARDEN_LAYA_STATE_TOKENS=2048 node scripts/rules-cases.mjs

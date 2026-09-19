@@ -7,7 +7,7 @@ import type { EntryType, Evaluation, Judge, Question, Questions, SystemOneReques
 export function defaultLayaModelPath(): string {
   const configured = process.env.PI_WARDEN_LAYA_MODEL?.trim();
   if (configured) return configured === "~" || configured.startsWith("~/") ? join(homedir(), configured.slice(1)) : configured;
-  return join(homedir(), ".pi", "agents", "laya", "laya_int8.onnx");
+  return join(homedir(), ".pi", "agent", "laya", "laya_int8.onnx");
 }
 
 // ModernBERT-large special-token ids. Transformers.js exposes some as undefined (e.g. cls_token_id), so these are the fallbacks.
