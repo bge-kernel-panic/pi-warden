@@ -42,6 +42,10 @@ don't help the window, so leave them out unless you want broad coverage.
    artifact pi-warden loads), drop it in place, recalibrate, and confirm it beats
    the shipped model on pi-warden's eval cases.
 
+**Related (not part of the pipeline):** `06-review-mode.md` is a design plan for an
+opt-in feature that harvests pi-warden's *own* on-domain safety labels from real
+sessions — the best long-context training data there is. Feeds future retrain runs.
+
 ## Canonical JSONL format (what the reformat scripts emit)
 
 Every line of `data/docnli.jsonl` and `data/quality.jsonl` is one training
